@@ -1,9 +1,15 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import { getProjects, getUsers } from './services/api.js'
 import './App.css'
 
 function App() {
   const taskStatuses = ['To Do', 'In Progress', 'Done']
-  const [projects, setProjects] = useState([])
+  const [serverProjects, setServerProjects] = useState([])
+  const [localProjects, setLocalProjects] = useState([])
+  const [projectsLoading, setProjectsLoading] = useState(true)
+  const [projectsError, setProjectsError] = useState('')
+  const [users, setUsers] = useState([])
+  const [usersError, setUsersError] = useState('')
   const [isFormOpen, setIsFormOpen] = useState(false)
   const [projectName, setProjectName] = useState('')
   const [selectedProjectId, setSelectedProjectId] = useState(null)
@@ -11,6 +17,57 @@ function App() {
   const [isTaskFormOpen, setIsTaskFormOpen] = useState(false)
   const [taskName, setTaskName] = useState('')
   const [assignedTo, setAssignedTo] = useState('')
+
+  useEffect(() => {
+    let isActive = true
+
+    getProjects()
+      .then((records) => {
+        if (!isActive) return
+
+        setServerProjects(records.map((record, index) => ({
+          id: String(record.ProjectID ?? record.id ?? `server-project-${index}`),
+          name: record.ProjectName ?? record.name ?? 'Untitled project',
+          source: 'server',
+        })))
+        setProjectsError('')
+      })
+      .catch((error) => {
+        if (!isActive) return
+        setProjectsError(`Could not load projects: ${error.message}`)
+      })
+      .finally(() => {
+        if (isActive) setProjectsLoading(false)
+      })
+
+    return () => {
+      isActive = false
+    }
+  }, [])
+
+  useEffect(() => {
+    let isActive = true
+
+    getUsers()
+      .then((records) => {
+        if (!isActive) return
+
+        setUsers(records.map((record, index) => ({
+          id: String(record.UserID ?? record.id ?? `server-user-${index}`),
+          name: record.UserName ?? record.name ?? 'Unnamed user',
+        })))
+        setUsersError('')
+      })
+      .catch((error) => {
+        if (isActive) setUsersError(`Could not load users: ${error.message}`)
+      })
+
+    return () => {
+      isActive = false
+    }
+  }, [])
+
+  const projects = [...serverProjects, ...localProjects]
 
   function closeForm() {
     setIsFormOpen(false)
@@ -23,7 +80,7 @@ function App() {
     if (!name) return
 
     const project = { id: crypto.randomUUID(), name }
-    setProjects((currentProjects) => [...currentProjects, project])
+    setLocalProjects((currentProjects) => [...currentProjects, { ...project, source: 'local' }])
     closeForm()
   }
 
@@ -107,7 +164,15 @@ function App() {
           </form>
         )}
 
-        {projects.length === 0 ? (
+        {projectsLoading ? (
+          <div className="empty-state" role="status">
+            <p>Loading projects...</p>
+          </div>
+        ) : projectsError ? (
+          <div className="empty-state" role="alert">
+            <p>{projectsError}</p>
+          </div>
+        ) : projects.length === 0 ? (
           <div className="empty-state">
             <p>No projects yet.</p>
           </div>
@@ -155,12 +220,17 @@ function App() {
                   required
                 />
                 <label htmlFor="assigned-to">Assigned To</label>
-                <input
+                <select
                   id="assigned-to"
-                  type="text"
                   value={assignedTo}
                   onChange={(event) => setAssignedTo(event.target.value)}
-                />
+                >
+                  <option value="">Unassigned</option>
+                  {users.map((user) => (
+                    <option key={user.id} value={user.name}>{user.name}</option>
+                  ))}
+                </select>
+                {usersError && <p role="alert">{usersError}</p>}
                 <div className="form-actions">
                   <button className="new-project-button" type="submit" disabled={!taskName.trim()}>
                     Add Task
