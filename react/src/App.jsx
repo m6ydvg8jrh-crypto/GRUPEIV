@@ -6,6 +6,10 @@ function App() {
   const [isFormOpen, setIsFormOpen] = useState(false)
   const [projectName, setProjectName] = useState('')
   const [selectedProjectId, setSelectedProjectId] = useState(null)
+  const [tasks, setTasks] = useState([])
+  const [isTaskFormOpen, setIsTaskFormOpen] = useState(false)
+  const [taskName, setTaskName] = useState('')
+  const [assignedTo, setAssignedTo] = useState('')
 
   function closeForm() {
     setIsFormOpen(false)
@@ -20,6 +24,32 @@ function App() {
     const project = { id: crypto.randomUUID(), name }
     setProjects((currentProjects) => [...currentProjects, project])
     closeForm()
+  }
+
+  function closeTaskForm() {
+    setIsTaskFormOpen(false)
+    setTaskName('')
+    setAssignedTo('')
+  }
+
+  function createTask(event) {
+    event.preventDefault()
+    const name = taskName.trim()
+    if (!name || !selectedProjectId) return
+
+    const task = {
+      id: crypto.randomUUID(),
+      projectId: selectedProjectId,
+      name,
+      assignedTo: assignedTo.trim(),
+      status: 'To Do',
+    }
+    setTasks((currentTasks) => [...currentTasks, task])
+    closeTaskForm()
+  }
+
+  function deleteTask(taskId) {
+    setTasks((currentTasks) => currentTasks.filter((task) => task.id !== taskId))
   }
 
   return (
@@ -83,6 +113,75 @@ function App() {
               </li>
             ))}
           </ul>
+        )}
+
+        {selectedProjectId && (
+          <section className="project-tasks" aria-labelledby="tasks-title">
+            <div className="tasks-header">
+              <h2 id="tasks-title">Project Tasks</h2>
+              <button
+                className="new-project-button"
+                type="button"
+                aria-expanded={isTaskFormOpen}
+                aria-controls={isTaskFormOpen ? 'new-task-form' : undefined}
+                onClick={() => setIsTaskFormOpen(true)}
+              >
+                + Add Task
+              </button>
+            </div>
+
+            {selectedProjectId && isTaskFormOpen && (
+              <form id="new-task-form" className="project-form" onSubmit={createTask}>
+                <label htmlFor="task-name">Task Name</label>
+                <input
+                  id="task-name"
+                  type="text"
+                  value={taskName}
+                  onChange={(event) => setTaskName(event.target.value)}
+                  autoFocus
+                  required
+                />
+                <label htmlFor="assigned-to">Assigned To</label>
+                <input
+                  id="assigned-to"
+                  type="text"
+                  value={assignedTo}
+                  onChange={(event) => setAssignedTo(event.target.value)}
+                />
+                <div className="form-actions">
+                  <button className="new-project-button" type="submit" disabled={!taskName.trim()}>
+                    Add Task
+                  </button>
+                  <button className="cancel-button" type="button" onClick={closeTaskForm}>
+                    Cancel
+                  </button>
+                </div>
+              </form>
+            )}
+
+            {tasks.filter((task) => task.projectId === selectedProjectId).length === 0 ? (
+              <div className="empty-state tasks-empty-state">
+                <p>No tasks for this project yet.</p>
+              </div>
+            ) : (
+              <ul className="task-list">
+                {tasks
+                  .filter((task) => task.projectId === selectedProjectId)
+                  .map((task) => (
+                    <li className="task-card" key={task.id}>
+                      <div className="task-details">
+                        <h3>{task.name}</h3>
+                        <p>Status: {task.status}</p>
+                        {task.assignedTo && <p>Assigned to: {task.assignedTo}</p>}
+                      </div>
+                      <button className="delete-button" type="button" onClick={() => deleteTask(task.id)}>
+                        Delete
+                      </button>
+                    </li>
+                  ))}
+              </ul>
+            )}
+          </section>
         )}
       </main>
     </div>
