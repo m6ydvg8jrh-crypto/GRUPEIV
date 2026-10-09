@@ -2,6 +2,7 @@ import { useState } from 'react'
 import './App.css'
 
 function App() {
+  const taskStatuses = ['To Do', 'In Progress', 'Done']
   const [projects, setProjects] = useState([])
   const [isFormOpen, setIsFormOpen] = useState(false)
   const [projectName, setProjectName] = useState('')
@@ -51,6 +52,18 @@ function App() {
   function deleteTask(taskId) {
     setTasks((currentTasks) => currentTasks.filter((task) => task.id !== taskId))
   }
+
+  function updateTaskStatus(taskId, status) {
+    setTasks((currentTasks) => currentTasks.map((task) => (
+      task.id === taskId ? { ...task, status } : task
+    )))
+  }
+
+  const selectedProjectTasks = tasks.filter((task) => task.projectId === selectedProjectId)
+  const doneTasksCount = selectedProjectTasks.filter((task) => task.status === 'Done').length
+  const projectProgress = selectedProjectTasks.length === 0
+    ? 0
+    : Math.round((doneTasksCount / selectedProjectTasks.length) * 100)
 
   return (
     <div className="app">
@@ -159,28 +172,56 @@ function App() {
               </form>
             )}
 
-            {tasks.filter((task) => task.projectId === selectedProjectId).length === 0 ? (
-              <div className="empty-state tasks-empty-state">
-                <p>No tasks for this project yet.</p>
+            <div className="project-progress" aria-label={`Project progress: ${projectProgress}%`}>
+              <div className="progress-label">
+                <span>Project progress</span>
+                <strong>{projectProgress}%</strong>
               </div>
-            ) : (
-              <ul className="task-list">
-                {tasks
-                  .filter((task) => task.projectId === selectedProjectId)
-                  .map((task) => (
-                    <li className="task-card" key={task.id}>
-                      <div className="task-details">
-                        <h3>{task.name}</h3>
-                        <p>Status: {task.status}</p>
-                        {task.assignedTo && <p>Assigned to: {task.assignedTo}</p>}
-                      </div>
-                      <button className="delete-button" type="button" onClick={() => deleteTask(task.id)}>
-                        Delete
-                      </button>
-                    </li>
-                  ))}
-              </ul>
-            )}
+              <div className="progress-track" role="progressbar" aria-valuenow={projectProgress} aria-valuemin="0" aria-valuemax="100">
+                <div className="progress-fill" style={{ width: `${projectProgress}%` }} />
+              </div>
+              <p>{doneTasksCount} of {selectedProjectTasks.length} tasks done</p>
+            </div>
+
+            <div className="kanban-board">
+              {taskStatuses.map((status) => {
+                const columnTasks = selectedProjectTasks.filter((task) => task.status === status)
+
+                return (
+                  <section className="kanban-column" key={status} aria-labelledby={`column-${status.replaceAll(' ', '-').toLowerCase()}`}>
+                    <h3 id={`column-${status.replaceAll(' ', '-').toLowerCase()}`} className="kanban-column-title">
+                      <span>{status}</span>
+                      <span className="column-count">{columnTasks.length}</span>
+                    </h3>
+                    {columnTasks.length === 0 ? (
+                      <p className="column-empty">No tasks</p>
+                    ) : (
+                      <ul className="task-list">
+                        {columnTasks.map((task) => (
+                          <li className="task-card" key={task.id}>
+                            <div className="task-details">
+                              <h4>{task.name}</h4>
+                              <p>{task.assignedTo ? `Assigned to: ${task.assignedTo}` : 'Unassigned'}</p>
+                            </div>
+                            <label className="status-control">
+                              <span>Status</span>
+                              <select value={task.status} onChange={(event) => updateTaskStatus(task.id, event.target.value)}>
+                                {taskStatuses.map((taskStatus) => (
+                                  <option key={taskStatus} value={taskStatus}>{taskStatus}</option>
+                                ))}
+                              </select>
+                            </label>
+                            <button className="delete-button" type="button" onClick={() => deleteTask(task.id)}>
+                              Delete
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </section>
+                )
+              })}
+            </div>
           </section>
         )}
       </main>
